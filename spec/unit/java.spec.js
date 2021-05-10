@@ -47,9 +47,19 @@ describe('Java', () => {
                 all: 'javac 1.8.0_275'
             }));
 
-            console.log('BEFORE', process.env.JAVA_HOME);
             const result = await Java.getVersion();
-            console.log('AFTER', process.env.JAVA_HOME);
+            expect(result.major).toBe(1);
+            expect(result.minor).toBe(8);
+            expect(result.patch).toBe(0);
+            expect(result.version).toBe('1.8.0');
+        });
+
+        it('detects JDK when additional details are printed', async () => {
+            Java.__set__('execa', () => Promise.resolve({
+                all: 'Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF8\njavac 1.8.0_275'
+            }));
+
+            const result = await Java.getVersion();
             expect(result.major).toBe(1);
             expect(result.minor).toBe(8);
             expect(result.patch).toBe(0);
@@ -74,6 +84,19 @@ describe('Java', () => {
     describe('_ensure', () => {
         beforeEach(() => {
             Java.__set__('javaIsEnsured', false);
+        });
+
+        it('CORDOVA_JAVA_HOME overrides JAVA_HOME', async () => {
+            spyOn(utils, 'forgivingWhichSync').and.returnValue('');
+
+            const env = {
+                CORDOVA_JAVA_HOME: '/tmp/jdk'
+            };
+
+            await Java._ensure(env);
+
+            expect(env.JAVA_HOME).toBe('/tmp/jdk');
+            expect(env.PATH.split(path.delimiter)).toContain(['', 'tmp', 'jdk', 'bin'].join(path.sep));
         });
 
         it('with JAVA_HOME / without javac', async () => {

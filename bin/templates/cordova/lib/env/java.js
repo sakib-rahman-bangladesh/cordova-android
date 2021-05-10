@@ -43,7 +43,28 @@ const java = {
         // Java <= 8 writes version info to stderr, Java >= 9 to stdout
         let version = null;
         try {
-            version = (await execa('javac', ['-version'], { all: true })).all;
+            const javacOutput = (await execa('javac', ['-version'], { all: true })).all;
+
+            /*
+            A regex match for the java version looks like the following:
+
+            version: [
+                'javac 1.8.0',
+                '1.8.0',
+                index: 45,
+                input: 'Picked up _JAVA_OPTIONS: -Xms1024M -Xmx2048M\njavac 1.8.0_271',
+                groups: undefined
+            ]
+
+            We have to use a regular expression to get the java version, because on some environments
+            (e.g. macOS Big Sur) javac prints _JAVA_OPTIONS before printing the version and semver.coerce()
+            will fail to get the correct version from the output.
+            */
+
+            const match = /javac\s+([\d.]+)/i.exec(javacOutput);
+            if (match && match[1]) {
+                version = match[1];
+            }
         } catch (ex) {
             events.emit('verbose', ex.shortMessage);
 
@@ -72,14 +93,15 @@ const java = {
             return;
         }
 
-        const javacPath = utils.forgivingWhichSync('javac');
-        const hasJavaHome = !!environment.JAVA_HOME;
-        if (hasJavaHome) {
-            // Windows java installer doesn't add javac to PATH, nor set JAVA_HOME (ugh).
-            if (!javacPath) {
-                environment.PATH += path.delimiter + path.join(environment.JAVA_HOME, 'bin');
-            }
+        const javaHome = environment.CORDOVA_JAVA_HOME || environment.JAVA_HOME;
+        if (javaHome) {
+            // Ensure that CORDOVA_JAVA_HOME overrides
+            environment.JAVA_HOME = javaHome;
+            // Ensure that the JAVA_HOME bin path is before anything else
+            // to cover cases where different Java versions is in the PATH
+            environment.PATH = path.join(environment.JAVA_HOME, 'bin') + path.delimiter + environment.PATH;
         } else {
+            const javacPath = utils.forgivingWhichSync('javac');
             if (javacPath) {
                 // OS X has a command for finding JAVA_HOME.
                 const find_java = '/usr/libexec/java_home';
