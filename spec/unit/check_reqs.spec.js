@@ -18,7 +18,7 @@
 */
 
 var rewire = require('rewire');
-var android_sdk = require('../../bin/templates/cordova/lib/android_sdk');
+var android_sdk = require('../../lib/android_sdk');
 var fs = require('fs-extra');
 var path = require('path');
 var events = require('cordova-common').events;
@@ -26,12 +26,12 @@ var which = require('which');
 
 const {
     SDK_VERSION: DEFAULT_TARGET_API
-} = require('../../bin/templates/cordova/lib/gradle-config-defaults');
+} = require('../../lib/gradle-config-defaults');
 
 describe('check_reqs', function () {
     let check_reqs;
     beforeEach(() => {
-        check_reqs = rewire('../../bin/templates/cordova/lib/check_reqs');
+        check_reqs = rewire('../../lib/check_reqs');
     });
 
     var original_env;
@@ -262,6 +262,7 @@ describe('check_reqs', function () {
     });
 
     describe('get_target', function () {
+        const projectRoot = 'fakeProjectRoot';
         var ConfigParser;
         var getPreferenceSpy;
         beforeEach(function () {
@@ -273,7 +274,7 @@ describe('check_reqs', function () {
         });
 
         it('should retrieve DEFAULT_TARGET_API', function () {
-            var target = check_reqs.get_target();
+            var target = check_reqs.get_target(projectRoot);
             expect(target).toBeDefined();
             expect(target).toContain('android-' + DEFAULT_TARGET_API);
         });
@@ -282,7 +283,7 @@ describe('check_reqs', function () {
             spyOn(fs, 'existsSync').and.returnValue(true);
             getPreferenceSpy.and.returnValue(String(DEFAULT_TARGET_API + 1));
 
-            var target = check_reqs.get_target();
+            var target = check_reqs.get_target(projectRoot);
 
             expect(getPreferenceSpy).toHaveBeenCalledWith('android-targetSdkVersion', 'android');
             expect(target).toBe('android-' + (DEFAULT_TARGET_API + 1));
@@ -292,7 +293,7 @@ describe('check_reqs', function () {
             spyOn(fs, 'existsSync').and.returnValue(true);
             getPreferenceSpy.and.returnValue('android-99');
 
-            var target = check_reqs.get_target();
+            var target = check_reqs.get_target(projectRoot);
 
             expect(getPreferenceSpy).toHaveBeenCalledWith('android-targetSdkVersion', 'android');
             expect(target).toBe('android-' + DEFAULT_TARGET_API);
@@ -305,7 +306,7 @@ describe('check_reqs', function () {
 
             getPreferenceSpy.and.returnValue(String(DEFAULT_TARGET_API - 1));
 
-            var target = check_reqs.get_target();
+            var target = check_reqs.get_target(projectRoot);
 
             expect(getPreferenceSpy).toHaveBeenCalledWith('android-targetSdkVersion', 'android');
             expect(target).toBe('android-' + DEFAULT_TARGET_API);
